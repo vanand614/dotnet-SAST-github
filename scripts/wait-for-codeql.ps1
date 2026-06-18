@@ -31,7 +31,7 @@ for($i=1;$i -le 30;$i++)
 
     if($Latest.status -eq "completed")
     {
-        Write-Host "CodeQL completed"
+        Write-Host "CodeQL successfully completed"
 
         exit 0
     }
