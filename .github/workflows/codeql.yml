@@ -1,0 +1,12 @@
+name: Violet CodeQL
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+
+jobs:
+  codeql:
+    uses: vanand614/security-platform/.github/workflows/reusable-codeql-dotnet.yml@main
