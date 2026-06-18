@@ -15,7 +15,7 @@ build:
     - dotnet build
 
     rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: always
 
 create_github_pr:
   stage: github_pr
@@ -30,7 +30,7 @@ create_github_pr:
     - pwsh scripts/create-github-pr.ps1
   
   rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: always
 
   artifacts:
     paths:
@@ -45,7 +45,7 @@ github_security_gate:
     - pwsh scripts/github-security-check.ps1
 
     rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: always
 
     artifacts:
         when: always
@@ -64,7 +64,7 @@ manual_approval:
     - echo "CAB Approval Granted"
 
     rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: always
 
 deploy:
     stage: deploy
@@ -73,4 +73,4 @@ deploy:
     - echo "Deploying Application"
 
     rules:
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - when: always
