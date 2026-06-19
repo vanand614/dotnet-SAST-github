@@ -1,17 +1,20 @@
-name: DotNet SAST
+name: Violet CodeQL
 
 on:
+  pull_request:
   push:
     branches:
       - main
 
-  pull_request:
-    branches:
-      - main
-
 jobs:
+
   codeql:
-    uses: vanand614/security-platform/.github/workflows/reusable-codeql-dotnet.yml@main
+
+    uses: vanand614/security-platform/.github/workflows/reusable-codeql.yml@main
 
     with:
-      project-path: ./app/SampleWebApi/SampleWebApi.csproj
+      language: csharp
+      runner: ubuntu-latest
+      build-command: |
+        dotnet restore ./app/SampleWebApi/SampleWebApi.csproj
+        dotnet build ./app/SampleWebApi/SampleWebApi.csproj --configuration Release
