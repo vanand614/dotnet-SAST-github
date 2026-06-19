@@ -4,15 +4,23 @@ on:
   push:
     branches:
       - main
-      - release/**
 
   pull_request:
     branches:
       - main
 
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
 jobs:
   codeql:
-    uses: vanand614/security-platform/.github/workflows/reusable-codeql-dotnet.yml@main
+    uses: vanand614/security-platform/.github/workflows/sast-workflow-init.yml@main
 
     with:
-      project-path: ./app/SampleWebApi/SampleWebApi.csproj
+      language: csharp
+
+      build-command: |
+        dotnet restore ./app/SampleWebApi/SampleWebApi.csproj
+        dotnet build ./app/SampleWebApi/SampleWebApi.csproj --configuration Release
