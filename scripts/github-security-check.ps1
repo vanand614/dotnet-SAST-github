@@ -74,65 +74,77 @@ catch
 # =====================================================
 # CODEQL ALERTS
 # =====================================================
- 
+
 $codeqlUri = "https://api.github.com/repos/$repoOwner/$repoName/code-scanning/alerts"
- 
+
 Write-Host ""
 Write-Host "CodeQL URI:"
 Write-Host $codeqlUri
- 
+
+$codeqlAlerts = @()
+$openCodeQLAlerts = @()
+$openCount = 0
+
 try
 {
     Write-Host ""
     Write-Host "Checking CodeQL Alerts..."
- 
+
     $response = Invoke-WebRequest `
         -Uri $codeqlUri `
         -Headers $headers `
         -Method GET `
         -UseBasicParsing
- 
+
     Write-Host ""
     Write-Host "HTTP Status:"
     Write-Host $response.StatusCode
- 
+
     Write-Host ""
     Write-Host "===== RAW CODEQL RESPONSE ====="
     Write-Host $response.Content
     Write-Host "==============================="
- 
-    $codeqlAlerts = $response.Content | ConvertFrom-Json
- 
+
+    if ([string]::IsNullOrWhiteSpace($response.Content) -or $response.Content -eq "[]")
+    {
+        Write-Host ""
+        Write-Host "No CodeQL alerts found."
+
+        $codeqlAlerts = @()
+    }
+    else
+    {
+        $codeqlAlerts = @($response.Content | ConvertFrom-Json)
+    }
+
     Write-Host ""
-    Write-Host "Object Type:"
-    Write-Host $codeqlAlerts.GetType().FullName
- 
-    foreach ($alert in @($codeqlAlerts))
+    Write-Host "Total CodeQL Alerts: $($codeqlAlerts.Count)"
+
+    foreach ($alert in $codeqlAlerts)
     {
         Write-Host ""
         Write-Host "Alert State : $($alert.state)"
- 
+
         if ($alert.rule)
         {
             Write-Host "Alert Rule  : $($alert.rule.id)"
         }
     }
- 
+
     $openCodeQLAlerts = @(
-    $codeqlAlerts | Where-Object {
-
-        $_.state -eq "open" -and
-        $_.most_recent_instance.commit_sha -eq $latestWorkflowSha
-
-    }
+        $codeqlAlerts | Where-Object {
+            $_.state -eq "open" -and
+            $_.most_recent_instance.commit_sha -eq $latestWorkflowSha
+        }
     )
- 
+
     $openCount = $openCodeQLAlerts.Count
- 
+
     Write-Host ""
     Write-Host "Latest Workflow SHA:"
     Write-Host $latestWorkflowSha
 
+    Write-Host ""
     Write-Host "Open CodeQL Alerts Matching Latest Scan: $openCount"
 }
 catch
@@ -141,16 +153,18 @@ catch
     {
         Write-Host ""
         Write-Host "No CodeQL alerts found."
- 
+
+        $codeqlAlerts = @()
+        $openCodeQLAlerts = @()
         $openCount = 0
     }
     else
     {
         Write-Host ""
         Write-Host "CODEQL API ERROR"
- 
+
         Write-Host $_.Exception.Message
- 
+
         exit 1
     }
 }
@@ -164,98 +178,124 @@ Write-Host ""
 Write-Host "Dependabot URI:"
 Write-Host $dependabotUri
 
+$dependabotAlerts      = @()
+$openDependabotAlerts  = @()
+$highAlerts            = @()
+$criticalAlerts        = @()
+$highOrCriticalAlerts  = @()
+
 try
 {
-Write-Host ""
-Write-Host "Checking Dependabot Alerts..."
-
-$response = Invoke-WebRequest `
-    -Uri $dependabotUri `
-    -Headers $headers `
-    -Method GET `
-    -UseBasicParsing
-
-$dependabotAlerts = $response.Content | ConvertFrom-Json
-
-Write-Host ""
-Write-Host "===== DEPENDABOT ALERTS ====="
-
-foreach($alert in @($dependabotAlerts))
-{
     Write-Host ""
-    Write-Host "Package : $($alert.dependency.package.name)"
-    Write-Host "Severity: $($alert.security_advisory.severity)"
-    Write-Host "State   : $($alert.state)"
-}
+    Write-Host "Checking Dependabot Alerts..."
 
-# ONLY OPEN ALERTS
+    $response = Invoke-WebRequest `
+        -Uri $dependabotUri `
+        -Headers $headers `
+        -Method GET `
+        -UseBasicParsing
 
-$openDependabotAlerts = @(
-    $dependabotAlerts | Where-Object {
-        $_.state -eq "open"
+    Write-Host ""
+    Write-Host "HTTP Status:"
+    Write-Host $response.StatusCode
+
+    Write-Host ""
+    Write-Host "===== RAW DEPENDABOT RESPONSE ====="
+    Write-Host $response.Content
+    Write-Host "==================================="
+
+    if ([string]::IsNullOrWhiteSpace($response.Content) -or
+        $response.Content -eq "[]")
+    {
+        Write-Host ""
+        Write-Host "No Dependabot alerts found."
+
+        $dependabotAlerts = @()
     }
-)
-
-$highAlerts = @(
-    $dependabotAlerts | Where-Object {
-        $_.state -eq "open" -and
-        $_.security_advisory.severity -eq "high"
+    else
+    {
+        $dependabotAlerts = @($response.Content | ConvertFrom-Json)
     }
-)
 
-$criticalAlerts = @(
-    $dependabotAlerts | Where-Object {
-        $_.state -eq "open" -and
-        $_.security_advisory.severity -eq "critical"
+    Write-Host ""
+    Write-Host "Total Dependabot Alerts: $($dependabotAlerts.Count)"
+
+    foreach ($alert in $dependabotAlerts)
+    {
+        Write-Host ""
+        Write-Host "Package : $($alert.dependency.package.name)"
+        Write-Host "Severity: $($alert.security_advisory.severity)"
+        Write-Host "State   : $($alert.state)"
     }
-)
 
-$highOrCriticalAlerts = @(
-    $dependabotAlerts | Where-Object {
-        $_.state -eq "open" -and (
-            $_.security_advisory.severity -eq "high" -or
+    # -------------------------------------------------
+    # OPEN ALERTS
+    # -------------------------------------------------
+
+    $openDependabotAlerts = @(
+        $dependabotAlerts | Where-Object {
+            $_.state -eq "open"
+        }
+    )
+
+    $highAlerts = @(
+        $dependabotAlerts | Where-Object {
+            $_.state -eq "open" -and
+            $_.security_advisory.severity -eq "high"
+        }
+    )
+
+    $criticalAlerts = @(
+        $dependabotAlerts | Where-Object {
+            $_.state -eq "open" -and
             $_.security_advisory.severity -eq "critical"
-        )
-    }
-)
+        }
+    )
 
-Write-Host ""
-Write-Host "Open Dependabot Alerts: $($openDependabotAlerts.Count)"
+    $highOrCriticalAlerts = @(
+        $dependabotAlerts | Where-Object {
+            $_.state -eq "open" -and (
+                $_.security_advisory.severity -eq "high" -or
+                $_.security_advisory.severity -eq "critical"
+            )
+        }
+    )
 
-Write-Host ""
-Write-Host "High Dependabot Alerts: $($highAlerts.Count)"
+    Write-Host ""
+    Write-Host "Open Dependabot Alerts: $($openDependabotAlerts.Count)"
 
-Write-Host ""
-Write-Host "Critical Dependabot Alerts: $($criticalAlerts.Count)"
+    Write-Host ""
+    Write-Host "High Dependabot Alerts: $($highAlerts.Count)"
 
-Write-Host ""
-Write-Host "High/Critical Dependabot Alerts: $($highOrCriticalAlerts.Count)"
+    Write-Host ""
+    Write-Host "Critical Dependabot Alerts: $($criticalAlerts.Count)"
 
+    Write-Host ""
+    Write-Host "High/Critical Dependabot Alerts: $($highOrCriticalAlerts.Count)"
 }
 catch
 {
-if ($_.Exception.Response.StatusCode.value__ -eq 404)
-{
-Write-Host ""
-Write-Host "No Dependabot alerts found."
+    if ($_.Exception.Response.StatusCode.value__ -eq 404)
+    {
+        Write-Host ""
+        Write-Host "No Dependabot alerts found."
 
-    $openDependabotAlerts = @()
-    $highAlerts = @()
-    $criticalAlerts = @()
-    $highOrCriticalAlerts = @()
+        $dependabotAlerts      = @()
+        $openDependabotAlerts  = @()
+        $highAlerts            = @()
+        $criticalAlerts        = @()
+        $highOrCriticalAlerts  = @()
+    }
+    else
+    {
+        Write-Host ""
+        Write-Host "DEPENDABOT API ERROR"
+
+        Write-Host $_.Exception.Message
+
+        exit 1
+    }
 }
-else
-{
-    Write-Host ""
-    Write-Host "DEPENDABOT API ERROR"
-
-    Write-Host $_.Exception.Message
-
-    exit 1
-}
-
-}
-
 # =====================================================
 # REPORT GENERATION
 # =====================================================
@@ -308,9 +348,9 @@ td {
 <h2>Summary</h2>
 
 <ul>
-<li>Open CodeQL Alerts: $OpenCodeQLAlerts</li>
-<li>Open Dependabot Alerts: $OpenDependabotAlerts</li>
-<li>High/Critical Dependabot Alerts: $HighCriticalDependabotAlerts</li>
+<li>Open CodeQL Alerts: $openCount</li>
+<li>Open Dependabot Alerts: $($openDependabotAlerts.Count)</li>
+<li>High/Critical Dependabot Alerts: $($highOrCriticalAlerts.Count)</li>
 </ul>
 
 <h2>CodeQL Alerts</h2>
