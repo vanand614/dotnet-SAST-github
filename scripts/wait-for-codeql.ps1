@@ -29,11 +29,17 @@ for($i=1;$i -le 30;$i++)
     Write-Host "Status: $($Latest.status)"
     Write-Host "Conclusion: $($Latest.conclusion)"
 
-    if($Latest.status -eq "completed")
+    if ($Latest.status -eq "completed")
     {
-        Write-Host "CodeQL successfully completed"
+        if ($Latest.conclusion -eq "success")
+        {
+        Write-Host "CodeQL completed successfully"
 
         exit 0
+        }
+
+        Write-Host "CodeQL workflow failed"
+        exit 1
     }
 
     Start-Sleep 15
