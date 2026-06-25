@@ -75,7 +75,7 @@ catch
 # CODEQL ALERTS
 # =====================================================
 
-$codeqlUri = "https://api.github.com/repos/$repoOwner/$repoName/code-scanning/alerts"
+$codeqlUri = "https://api.github.com/repos/$repoOwner/$repoName/code-scanning/alerts?per_page=100"
 
 Write-Host ""
 Write-Host "CodeQL URI:"
@@ -131,21 +131,32 @@ try
         }
     }
 
+    $totalCodeQLAlerts = @($codeqlAlerts).Count
+
     $openCodeQLAlerts = @(
-        $codeqlAlerts | Where-Object {
-            $_.state -eq "open" -and
-            $_.most_recent_instance.commit_sha -eq $latestWorkflowSha
-        }
+        $codeqlAlerts | Where-Object { $_.state -eq "open" }
+    )
+
+    $fixedCodeQLAlerts = @(
+        $codeqlAlerts | Where-Object { $_.state -eq "fixed" }
+    )
+
+    $dismissedCodeQLAlerts = @(
+        $codeqlAlerts | Where-Object { $_.state -eq "dismissed" }
     )
 
     $openCount = $openCodeQLAlerts.Count
+    $fixedCount = $fixedCodeQLAlerts.Count
+    $dismissedCount = $dismissedCodeQLAlerts.Count
 
     Write-Host ""
-    Write-Host "Latest Workflow SHA:"
-    Write-Host $latestWorkflowSha
-
-    Write-Host ""
-    Write-Host "Open CodeQL Alerts Matching Latest Scan: $openCount"
+    Write-Host "========================================="
+    Write-Host "CODEQL SUMMARY"
+    Write-Host "========================================="
+    Write-Host "Total Alerts      : $totalCodeQLAlerts"
+    Write-Host "Open Alerts       : $openCount"
+    Write-Host "Fixed Alerts      : $fixedCount"
+    Write-Host "Dismissed Alerts  : $dismissedCount"
 }
 catch
 {
@@ -348,7 +359,10 @@ td {
 <h2>Summary</h2>
 
 <ul>
+<li>Total CodeQL Alerts: $totalCodeQLAlerts</li>
 <li>Open CodeQL Alerts: $openCount</li>
+<li>Fixed CodeQL Alerts: $fixedCount</li>
+<li>Dismissed CodeQL Alerts: $dismissedCount</li>
 <li>Open Dependabot Alerts: $($openDependabotAlerts.Count)</li>
 <li>High/Critical Dependabot Alerts: $($highOrCriticalAlerts.Count)</li>
 </ul>
